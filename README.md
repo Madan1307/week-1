@@ -8,4 +8,4 @@ A simple CNN is trained using **TensorFlow/Keras** to classify healthy and disea
 > The dataset is large, so it couldn’t be uploaded directly to GitHub.  
 > You can access it via the Google Drive link below:
 
-[📁 Google Drive Dataset Link](https://drive.google.com/file/d/1CA4T8rn1lv1in35ZzXAexK5k4ZCfKU5R/view?usp=sharing)
+[📁 Google Drive Dataset Link](https://drive.google.com/file/d/1CA4T8rn1lvin135ZzXAexK5k4ZCfKU5R/view?usp=drive_link)
