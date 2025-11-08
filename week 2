@@ -1,0 +1,177 @@
+# ======================================================
+# 🌿 PROJECT: BIODEGRADATION RATE DETECTION USING CNN
+# WEEK-2 & WEEK-3 COMBINED CODE
+# ======================================================
+
+# ------------------------------------------------------
+# 1️⃣ Import Required Libraries
+# ------------------------------------------------------
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, GlobalAveragePooling2D
+from tensorflow.keras.applications import MobileNetV2
+from sklearn.metrics import confusion_matrix, classification_report
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+# ------------------------------------------------------
+# 2️⃣ Dataset Path
+# ------------------------------------------------------
+base_path = "/content/FRUIT-16K/FRUIT-16K"   # change if needed
+
+# ------------------------------------------------------
+# 3️⃣ Data Preprocessing and Augmentation
+# ------------------------------------------------------
+datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    validation_split=0.2
+)
+
+train_data = datagen.flow_from_directory(
+    base_path,
+    target_size=(224,224),
+    batch_size=32,
+    class_mode='categorical',
+    subset='training'
+)
+
+val_data = datagen.flow_from_directory(
+    base_path,
+    target_size=(224,224),
+    batch_size=32,
+    class_mode='categorical',
+    subset='validation'
+)
+
+# ------------------------------------------------------
+# 4️⃣ Build Basic CNN (Week-2 Part)
+# ------------------------------------------------------
+basic_model = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(224,224,3)),
+    MaxPooling2D(2,2),
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D(2,2),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.3),
+    Dense(train_data.num_classes, activation='softmax')
+])
+
+basic_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# ------------------------------------------------------
+# 5️⃣ Train Basic CNN
+# ------------------------------------------------------
+print("\n🧠 Training Basic CNN Model (Week-2 Stage 1)...")
+history_basic = basic_model.fit(train_data, epochs=5, validation_data=val_data)
+
+# Plot accuracy
+plt.figure(figsize=(8,4))
+plt.plot(history_basic.history['accuracy'], label='Train Accuracy')
+plt.plot(history_basic.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Basic CNN Training Progress')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+# Save model
+basic_model.save("/content/fruit_basic_cnn.h5")
+print("✅ Basic CNN model saved successfully!")
+
+# ------------------------------------------------------
+# 6️⃣ Transfer Learning with MobileNetV2 (Week-3 Part)
+# ------------------------------------------------------
+print("\n🚀 Building Transfer Learning Model (MobileNetV2)...")
+
+base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224,224,3))
+for layer in base_model.layers:
+    layer.trainable = False
+
+x = base_model.output
+x = GlobalAveragePooling2D()(x)
+x = Dropout(0.3)(x)
+output = Dense(train_data.num_classes, activation='softmax')(x)
+model = Model(inputs=base_model.input, outputs=output)
+
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# ------------------------------------------------------
+# 7️⃣ Train Transfer Learning Model
+# ------------------------------------------------------
+print("\n🧠 Training Transfer Learning Model (Week-3 Stage 1)...")
+history_tl = model.fit(train_data, epochs=5, validation_data=val_data)
+
+plt.figure(figsize=(8,4))
+plt.plot(history_tl.history['accuracy'], label='Train Accuracy')
+plt.plot(history_tl.history['val_accuracy'], label='Validation Accuracy')
+plt.title('MobileNetV2 Transfer Learning Training')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+# ------------------------------------------------------
+# 8️⃣ Fine-Tune Top Layers of MobileNetV2
+# ------------------------------------------------------
+print("\n🔧 Fine-tuning the top layers...")
+
+for layer in model.layers[-20:]:
+    layer.trainable = True
+
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+fine_tune_history = model.fit(train_data, epochs=5, validation_data=val_data)
+
+plt.figure(figsize=(8,4))
+plt.plot(fine_tune_history.history['accuracy'], label='Train Accuracy (Fine-tuned)')
+plt.plot(fine_tune_history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Fine-Tuned Model Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+# ------------------------------------------------------
+# 9️⃣ Model Evaluation
+# ------------------------------------------------------
+loss, acc = model.evaluate(val_data)
+print(f"\n✅ Final Validation Accuracy: {acc*100:.2f}%")
+
+# Confusion Matrix
+Y_pred = model.predict(val_data)
+y_pred = np.argmax(Y_pred, axis=1)
+
+cm = confusion_matrix(val_data.classes, y_pred)
+plt.figure(figsize=(8,6))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=val_data.class_indices.keys(),
+            yticklabels=val_data.class_indices.keys())
+plt.title("Confusion Matrix - Final Model")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
+
+# Classification Report
+print("\nClassification Report:\n")
+print(classification_report(val_data.classes, y_pred, target_names=val_data.class_indices.keys()))
+
+# ------------------------------------------------------
+# 🔟 Save Final Fine-Tuned Model
+# ------------------------------------------------------
+model.save("/content/fruit_cnn_final_model.h5")
+print("💾 Final fine-tuned model saved successfully as fruit_cnn_final_model.h5!")
+
+# ------------------------------------------------------
+# 🏁 End of Week-2 & Week-3 Combined Code
+# ------------------------------------------------------
+print("\n🎉 All stages completed successfully!")
